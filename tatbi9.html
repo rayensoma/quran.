@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>quran</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1f1f">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root{
+  --bg:#0f1f1f;--card:#1f3535;--text:#eaeaea;
+  --accent:#d32f2f;--gold:#ffcc33;
+}
+.light{ --bg:#f2f2f2; --card:#fff; --text:#1f1f1f; }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+  font-family:system-ui, -apple-system, sans-serif;
+  display:flex; align-items:center; justify-content:center;
+  padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+  transition: background .3s, color .3s;
+}
+.app{
+  width:100%; max-width:460px;
+  background:var(--card); border-radius:20px;
+  padding:18px; box-shadow:0 18px 40px rgba(0,0,0,.45);
+  display:flex; flex-direction:column; gap:8px;
+}
+.header{display:flex;align-items:center;justify-content:space-between}
+.icon{background:none;border:none;color:var(--text);font-size:1.4rem;cursor:pointer}
+.title{text-align:center;font-weight:700}
+.surah{font-size:1.9rem;color:var(--gold);text-align:center;margin:6px 0}
+.reciter{text-align:center;opacity:.85;font-size:.9rem}
+
+.row{display:flex;gap:8px;align-items:center}
+input[type="search"], select{
+  width:100%; padding:12px;border-radius:10px;border:none;font-size:1rem;outline:none;
+  background:#fff;color:#000;
+}
+
+.controls{display:flex;justify-content:center;gap:18px;padding-top:6px}
+.play{width:82px;height:82px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:1.9rem;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 20px rgba(211,47,47,.25)}
+.play.playing{background:var(--gold);color:#000}
+.small{font-size:1.3rem}
+.progress{width:100%;height:10px;background:#ffffff22;border-radius:12px;cursor:pointer;overflow:hidden}
+.bar{height:100%;width:0;background:var(--gold);border-radius:12px;transition:width .12s linear}
+.time{display:flex;justify-content:space-between;font-size:.85rem;opacity:.95}
+.range-wrap{display:flex;justify-content:center;align-items:center;padding-top:6px}
+input[type="range"]{width:86%;accent-color:var(--gold)}
+
+.bottom{display:flex;justify-content:space-around;padding-top:8px}
+.repeat-active{color:var(--gold)!important}
+.fav{color:#ff4757!important}
+
+.status{text-align:center;font-size:.9rem;margin-top:6px;color:var(--accent);min-height:1.2em}
+
+.select-mini{padding:8px;border-radius:10px;background:#fff;color:#000;border:none}
+
+@media (max-width:420px){ .surah{font-size:1.6rem} .play{width:72px;height:72px} }
+</style>
+</head>
+<body>
+  <div class="app" role="main">
+    <div class="header">
+      <button id="theme" class="icon" title="تبديل الوضع"><i class="fas fa-moon"></i></button>
+      <strong class="title">مصحف تونس (علي البراق)</strong>
+      <button id="fav" class="icon" title="مفضلة"><i class="far fa-heart"></i></button>
+    </div>
+
+    <div class="surah" id="title">الفاتحة</div>
+    <div class="reciter">برواية قالون عن نافع — نسخة أرشيف</div>
+
+    <div class="row">
+      <input id="search" type="search" placeholder="🔍 ابحث عن اسم السورة..." aria-label="بحث سورة">
+    </div>
+
+    <select id="list" aria-label="قائمة السور" size="6" style="height:220px;padding:8px;border-radius:10px;background:#fff;color:#000"></select>
+
+    <div class="controls">
+      <button id="prev" class="icon small" title="السابق"><i class="fas fa-backward-step"></i></button>
+      <button id="play" class="play" title="تشغيل"><i class="fas fa-play"></i></button>
+      <button id="next" class="icon small" title="التالي"><i class="fas fa-forward-step"></i></button>
+    </div>
+
+    <div id="progress-container" class="progress" aria-label="شريط التقدّم"><div id="bar" class="bar"></div></div>
+    <div class="time"><span id="current">00:00</span><span id="duration">00:00</span></div>
+
+    <div class="range-wrap">
+      🔉 <input id="volume" type="range" min="0" max="1" step="0.01" value="1"> 🔊
+    </div>
+
+    <div class="bottom">
+      <button id="repeat" class="icon" title="تكرار"><i class="fas fa-redo"></i></button>
+      <div style="display:flex;gap:6px">
+        <button id="download" class="icon" title="تحميل"><i class="fas fa-download"></i></button>
+        <button id="showFavs" class="icon" title="قائمة المفضلات"><i class="fas fa-list"></i></button>
+      </div>
+    </div>
+
+    <select id="favList" style="display:none;margin-top:10px;padding:8px;border-radius:10px;background:#fff;color:#000"></select>
+
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+      <input id="sleepMinutes" class="select-mini" type="number" placeholder="دقائق نوم" min="1" style="width:110px"/>
+      <button id="setSleep" class="select-mini">تشغيل المؤقت</button>
+      <button id="clearSleep" class="select-mini">إلغاء</button>
+    </div>
+
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+
+  <audio id="audio" playsinline></audio>
+
+<script>
+/* ————— إعدادات ————— */
+const surahs = [
+"الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف","الأنفال","التوبة","يونس",
+"هود","يوسف","الرعد","إبراهيم","الحجر","النحل","الإسراء","الكهف","مريم","طه",
+"الأنبياء","الحج","المؤمنون","النور","الفرقان","الشعراء","النمل","القصص","العنكبوت","الروم",
+"لقمان","السجدة","الأحزاب","سبأ","فاطر","يس","الصافات","ص","الزمر","غافر",
+"فصلت","الشورى","الزخرف","الدخان","الجاثية","الأحقاف","محمد","الفتح","الحجرات","ق",
+"الذاريات","الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة","الحشر","الممتحنة",
+"الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم","الملك","القلم","الحاقة","المعارج",
+"نوح","الجن","المزمل","المدثر","القيامة","الإنسان","المرسلات","النبأ","النازعات","عبس",
+"التكوير","الانفطار","المطففين","الانشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد",
+"الشمس","الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة","العاديات",
+"القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون","الكوثر","الكافرون","النصر",
+"المسد","الإخلاص","الفلق","الناس"
+];
+
+const $ = id => document.getElementById(id);
+const audio = $("audio");
+const list = $("list"), titleEl = $("title"), playBtn = $("play"), bar = $("bar");
+const current = $("current"), duration = $("duration"), status = $("status");
+const favList = $("favList");
+
+let favorites = JSON.parse(localStorage.getItem("favs") || "[]");
+let repeat = false;
+let sleepTimer = null;
+
+/* ————— تعبئة القائمة (بـ DOM بكفاءة) ————— */
+function fillList(arr = surahs) {
+  list.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  arr.forEach((s,i) => {
+    const o = document.createElement("option");
+    o.value = i+1;
+    o.textContent = `${i+1}. ${s}`;
+    frag.appendChild(o);
+  });
+  list.appendChild(frag);
+}
+fillList();
+
+/* ————— بناء رابط OGG من Internet Archive —————
+  نستخدم القالب:
+  https://archive.org/download/AlMos7afAl_mourattel_3liAlBarra9/001.ogg
+*/
+function fileUrl(id){
+  const file = String(id).padStart(3,"0") + ".ogg";
+  return `https://archive.org/download/AlMos7afAl_mourattel_3liAlBarra9/${file}`;
+}
+
+/* ————— تحميل وتشغيل مع تعامل أفضل مع الحظر ————— */
+async function load(id, auto=true){
+  // ضمان أن id عدد صحيح داخل المجال
+  id = Number(id) || 1;
+  if(id < 1) id = 1; if(id > surahs.length) id = surahs.length;
+
+  audio.pause();
+  titleEl.textContent = surahs[id-1];
+  status.textContent = "⏳ جاري التحضير...";
+
+  const src = fileUrl(id);
+  audio.src = src;
+  audio.crossOrigin = "anonymous";
+  audio.load();
+
+  // محاولة تشغيل بعد تهيئة canplaythrough أو بعد خطأ
+  const playAttempt = async () => {
+    try{
+      if(auto){
+        await audio.play();
+        status.textContent = "▶️ تشغيل";
+      } else {
+        status.textContent = "⏸️ جاهز للتشغيل";
+      }
+    }catch(err){
+      // إذا حُظِر التشغيل — نطلب تفاعل مستخدم عبر رسالة
+      console.warn("Playback blocked:", err);
+      status.textContent = "🔇 اضغط زر التشغيل للبدء";
+    }
+  };
+
+  // oncanplaythrough يعطي ثقة أنّ الميديا قابلة للتشغيل
+  audio.oncanplaythrough = () => { playAttempt(); };
+  audio.onerror = () => { status.textContent = "⚠️ فشل تحميل السورة (ربما الرابط غير متاح)"; };
+  updateFav(); updateFavList(); updateMediaSession();
+}
+
+/* ————— تنسيق الوقت ————— */
+function fmt(t){
+  if(!t || isNaN(t)) return "00:00";
+  const m = Math.floor(t/60), s = Math.floor(t%60);
+  return `${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+}
+
+/* ————— أحداث الصوت ————— */
+audio.ontimeupdate = () => {
+  current.textContent = fmt(audio.currentTime);
+  duration.textContent = fmt(audio.duration);
+  bar.style.width = (audio.currentTime/audio.duration*100 || 0) + "%";
+};
+audio.onplay = () => { playBtn.classList.add("playing"); playBtn.innerHTML = '<i class="fas fa-pause"></i>'; status.textContent = "▶️ تشغيل"; };
+audio.onpause = () => { playBtn.classList.remove("playing"); playBtn.innerHTML = '<i class="fas fa-play"></i>'; status.textContent = "⏸️ إيقاف"; };
+audio.onended = () => repeat ? audio.play() : next();
+audio.onerror = () => status.textContent = "⚠️ تعذر تشغيل الملف";
+
+/* ————— تحكمات ————— */
+function togglePlay(){ audio.paused ? audio.play() : audio.pause(); }
+function next(){
+  if(list.selectedIndex < list.length - 1){ list.selectedIndex++; load(list.value); }
+}
+function prev(){
+  if(list.selectedIndex > 0){ list.selectedIndex--; load(list.value); }
+}
+
+/* شريط التقدّم تفاعلي */
+$("progress-container").addEventListener("click", (e) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  audio.currentTime = (clickX / rect.width) * audio.duration;
+});
+
+/* المفضلة */
+function updateFav(){
+  $("fav").innerHTML = favorites.includes(list.value) ? '<i class="fas fa-heart fav"></i>' : '<i class="far fa-heart"></i>';
+}
+$("fav").addEventListener("click", () => {
+  const v = list.value;
+  favorites = favorites.includes(v) ? favorites.filter(f => f !== v) : [...favorites, v];
+  localStorage.setItem("favs", JSON.stringify(favorites));
+  updateFav(); updateFavList();
+});
+function updateFavList(){
+  favList.innerHTML = "";
+  if(!favorites.length){
+    const o = document.createElement("option"); o.textContent = "لا توجد مفضلات"; favList.appendChild(o); return;
+  }
+  favorites.forEach(id=>{
+    const o = document.createElement("option"); o.value = id; o.textContent = `${id}. ${surahs[id-1]}`; favList.appendChild(o);
+  });
+}
+$("showFavs").onclick = () => {
+  favList.style.display = favList.style.display === "none" ? "block" : "none";
+  updateFavList();
+};
+favList.onchange = () => { list.value = favList.value; load(favList.value); };
+
+/* تكرار */
+$("repeat").onclick = () => { repeat = !repeat; $("repeat").classList.toggle("repeat-active", repeat); };
+
+/* البحث (لا نعيد ترتيب الأصول) */
+$("search").addEventListener("input", (e) => {
+  const q = e.target.value.trim();
+  if(!q) { fillList(); return; }
+  const filtered = surahs.map((s,i)=>({s,i})).filter(x => x.s.includes(q)).map(x=>x.s);
+  fillList(surahs.filter(s => s.includes(q)));
+});
+
+/* الأزرار */
+playBtn.onclick = () => {
+  // playBtn قد تُمنع إذا لم يكن هناك src صالح: نضمن وجود خيار محدد
+  if(!list.value) { status.textContent = "اختر سورة من القائمة"; return; }
+  // إن كان audio.src غير مطابق لـ list.value، نحمّله أولًا (هذا يجعل التفاعل واضح للمتصفح)
+  const currentIdx = Number(list.value);
+  const src = audio.src;
+  const shouldLoad = !src || !src.includes(String(currentIdx).padStart(3,"0"));
+  if(shouldLoad){ load(currentIdx, true); } else { togglePlay(); }
+};
+
+$("next").onclick = next;
+$("prev").onclick = prev;
+list.onchange = () => load(list.value);
+
+/* مستوى الصوت */
+$("volume").addEventListener("input", e => { audio.volume = e.target.value; localStorage.setItem("vol", e.target.value); });
+const savedVol = localStorage.getItem("vol");
+if(savedVol) { $("volume").value = savedVol; audio.volume = savedVol; }
+
+/* تحميل السورة */
+$("download").onclick = () => {
+  const id = list.value || 1;
+  const url = fileUrl(id);
+  // نفتح الرابط في نافذة جديدة — المتصفح سيعالج التحميل
+  window.open(url, "_blank");
+};
+
+/* ثيم وحفظه */
+$("theme").onclick = () => {
+  document.body.classList.toggle("light");
+  localStorage.setItem("theme", document.body.classList.contains("light"));
+};
+if(localStorage.getItem("theme") === "true") document.body.classList.add("light");
+
+/* Media Session API */
+function updateMediaSession(){
+  if(!("mediaSession" in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: titleEl.textContent,
+    artist: "الشيخ علي البراق",
+    album: "مصحف تونس (Internet Archive)"
+  });
+  navigator.mediaSession.setActionHandler('play', ()=>audio.play());
+  navigator.mediaSession.setActionHandler('pause', ()=>audio.pause());
+  navigator.mediaSession.setActionHandler('previoustrack', prev);
+  navigator.mediaSession.setActionHandler('nexttrack', next);
+}
+
+/* استدعاءات مبكرة */
+load(1,false); // لا تشغّل تلقائياً، فقط جهّز السورة الأولى
+updateFav(); updateFavList(); updateMediaSession();
+
+/* تحديث metadata عند كل تحميل */
+function updateMedia(){ updateMediaSession(); }
+
+/* ————— مؤقت النوم (Sleep Timer) ————— */
+$("setSleep").onclick = () => {
+  const mins = Number($("sleepMinutes").value);
+  if(!mins || mins <= 0){ status.textContent = "أدخل عدد دقائق صالح"; return; }
+  if(sleepTimer) clearTimeout(sleepTimer);
+  sleepTimer = setTimeout(()=>{ audio.pause(); status.textContent = `⏱️ مؤقت (${mins} دقيقة) انتهى — تم الإيقاف`; sleepTimer = null; }, mins*60000);
+  status.textContent = `⏱️ مؤقت النوم مفعل (${mins} دقيقة)`;
+};
+$("clearSleep").onclick = () => {
+  if(sleepTimer){ clearTimeout(sleepTimer); sleepTimer = null; status.textContent = "⏱️ تم إيقاف مؤقت النوم"; }
+  else status.textContent = "لا يوجد مؤقت مفعل";
+};
+
+/* تحسين: لو فتح المستخدم العنصر في القائمة — نحمّل ملفه */
+list.addEventListener("click", (e) => {
+  const val = list.value || 1;
+  const wanted = String(val).padStart(3,"0");
+  if(!audio.src.includes(wanted)) load(val,false);
+});
+
+/* عندما يتغير المصدر أو العنصر — حدّث الميتاداتا */
+audio.addEventListener("loadedmetadata", updateMedia);
+
+</script>
+
+<!-- تسجيل Service Worker (اختياري لتحويل PWA لاحقاً) -->
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{ /* لا تفشل */ });
+}
+/* ————— حفظ السورة للاستخدام بدون إنترنت ————— */
+$("download").insertAdjacentHTML("afterend", `
+  <button id="saveOffline" class="icon" title="حفظ للتشغيل بدون إنترنت"><i class="fas fa-cloud-download-alt"></i></button>
+`);
+
+const CACHE_NAME = "quran-offline-surahs";
+
+$("saveOffline").onclick = async () => {
+  const id = list.value || 1;
+  const url = fileUrl(id);
+  const name = `${id}.ogg`;
+
+  status.textContent = `⬇️ جاري تحميل ${surahs[id-1]}...`;
+
+  try {
+    const res = await fetch(url, {mode: "cors"});
+    if (!res.ok) throw new Error("خطأ في التحميل");
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(url, res.clone());
+    status.textContent = `✅ تم حفظ سورة ${surahs[id-1]} للاستخدام بدون إنترنت`;
+  } catch (err) {
+    console.error(err);
+    status.textContent = "⚠️ تعذر الحفظ، تأكد من الاتصال بالإنترنت";
+  }
+};
+
+/* عند التشغيل نحاول أولًا تشغيل من الكاش إذا موجود */
+async function load(id, auto=true){
+  id = Number(id) || 1;
+  audio.pause();
+  titleEl.textContent = surahs[id-1];
+  status.textContent = "⏳ جاري التحضير...";
+
+  const url = fileUrl(id);
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(url);
+
+  if (cached) {
+    audio.src = URL.createObjectURL(await cached.blob());
+    status.textContent = "📦 تشغيل من الملفات المحفوظة";
+  } else {
+    audio.src = url;
+  }
+
+  audio.load();
+
+  const playAttempt = async () => {
+    try {
+      if (auto) {
+        await audio.play();
+        status.textContent = "▶️ تشغيل";
+      } else status.textContent = "⏸️ جاهز للتشغيل";
+    } catch (err) {
+      console.warn("Playback blocked:", err);
+      status.textContent = "🔇 اضغط زر التشغيل للبدء";
+    }
+  };
+  audio.oncanplaythrough = () => playAttempt();
+  audio.onerror = () => { status.textContent = "⚠️ فشل تحميل السورة"; };
+  updateFav(); updateFavList(); updateMediaSession();
+}
+
+</script>
+</body>
+</html>
